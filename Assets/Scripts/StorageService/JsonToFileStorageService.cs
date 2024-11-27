@@ -2,14 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using UnityEngine;
 
 public class JsonToFileStorageService : IStorageService
 {
-    private readonly byte[] encryptionKey = Encoding.UTF8.GetBytes("uFsxJjZv7YscM2VX8gPbTg=="); // Должно быть 16, 24 или 32 байта
-    private readonly byte[] iv = new byte[16]; // Должно быть 16 байт для AES
     private string key;
     private bool useEncryption;
     private readonly string backupExtension = ".bak";
@@ -44,7 +40,7 @@ public class JsonToFileStorageService : IStorageService
 
                 if (useEncryption)
                 {
-                    jsonData = DecryptData(jsonData);
+                    jsonData =EncryptionTool.DecryptData(jsonData);
                 }
 
                 data = JsonConvert.DeserializeObject<GameData>(jsonData);
@@ -73,23 +69,6 @@ public class JsonToFileStorageService : IStorageService
         callback?.Invoke(data);
     }
 
-    private string DecryptData(string encryptedData)
-    {
-        byte[] encryptedBytes = Convert.FromBase64String(encryptedData);
-
-        using (var aes = Aes.Create())
-        {
-            aes.Key = encryptionKey;
-            aes.IV = iv;
-
-            using (var memoryStream = new MemoryStream(encryptedBytes))
-            using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateDecryptor(), CryptoStreamMode.Read))
-            using (var streamReader = new StreamReader(cryptoStream))
-            {
-                return streamReader.ReadToEnd();
-            }
-        }
-    }
 
     public void Save(GameData data, string profileId, Action<bool> callback = null)
     {
@@ -108,7 +87,7 @@ public class JsonToFileStorageService : IStorageService
 
             if (useEncryption)
             {
-                dataToStore = EncryptData(dataToStore);
+                dataToStore = EncryptionTool.EncryptData(dataToStore);
             }
 
             using (var filestream = new FileStream(path, FileMode.Create))
@@ -136,25 +115,6 @@ public class JsonToFileStorageService : IStorageService
         callback?.Invoke(true);
     }
 
-    private string EncryptData(string dataToStore)
-    {
-        using (var aes = Aes.Create())
-        {
-            aes.Key = encryptionKey;
-            aes.IV = iv;
-
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
-                using (var streamWriter = new StreamWriter(cryptoStream))
-                {
-                    streamWriter.Write(dataToStore);
-                }
-
-                return Convert.ToBase64String(memoryStream.ToArray());
-            }
-        }
-    }
     public Dictionary<string, GameData> LoadAllProfiles()
     {
         Dictionary<string, GameData> profileDictionary = new Dictionary<string, GameData>();
